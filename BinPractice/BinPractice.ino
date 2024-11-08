@@ -3,6 +3,11 @@ int latchPin;
 int clockPin;
 int dataPin;
 
+int g4 = 392;
+int a4 = 440;
+int f4 = 349;
+int e4 = 330;
+
 //A binary number that keeps track of the current STATE of the LEDs.
 byte currentState;
 
@@ -180,3 +185,4 @@ void updateRegister(){
   shiftOut(dataPin, clockPin, MSBFIRST, currentState);  //LSBFIRST Least Sig Bit first,  RIGHT to left
   digitalWrite(latchPin, HIGH);//stop editing
 }
+
