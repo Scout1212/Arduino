@@ -4,7 +4,7 @@
 // initialize the library with the numbers of the interface pins
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 int button1 = 8;
-int button2 = 9;
+int button2 = 7;
 
 void setup() {
   // set up the LCD's number of columns and rows:
@@ -27,19 +27,19 @@ void loop() {
   
 }
 
-int collU =7;
+int collU = 7;
 bool pressed = false;
 
 void moveUbutton(){
   int b1State = digitalRead(button1);
   int b2State = digitalRead(button2);
 
-  if(!b1State && !pressed){
+  if(b1State && !pressed){
     collU++;
     pressed = true;
     lcd.clear();
   }
-  else if(!b2State && !pressed){
+  else if(b2State && !pressed){
     collU--;
     pressed = true;
     lcd.clear();
@@ -51,6 +51,7 @@ void moveUbutton(){
     collU = 15;
   else if(collU >= 16)
     collU = 0;
+  Serial.println(collU);
 
   lcd.setCursor(collU,1);
   lcd.print("e");
@@ -105,6 +106,21 @@ void scrollELeft(long millis){
 
   lcd.setCursor(collumn, 0);
   lcd.print("e");
+}
+
+int pos = 0;
+String msg = "YES OR NO";
+void chooseAnswer(){
+  int b1State = digitalRead(button1);
+  int b2State = digitalRead(button2); 
+
+  if(b1State)
+    pos = 0;
+  else if(b2State)
+    pos = 7;
+
+  lcd.setCursor(pos, 1);
+  lcd.cursor();
 }
 
 
