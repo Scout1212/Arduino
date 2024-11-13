@@ -5,7 +5,7 @@
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 int button1 = 8;
 int button2 = 7;
-
+int led = 9;
 void setup() {
   // set up the LCD's number of columns and rows:
   Serial.begin(9600);
@@ -14,6 +14,9 @@ void setup() {
 
   pinMode(button1, INPUT);
   pinMode(button2, INPUT);
+  pinMode(led, OUTPUT);
+
+  
 }
 
 void loop() {
@@ -22,9 +25,9 @@ void loop() {
   //lcd.print("hello, world!");
 
   //print(millis());
-  scrollELeft(millis());
-  moveUbutton();
-  
+  //scrollELeft(millis());
+  //moveUbutton();
+  chooseMode(millis());
 }
 
 int collU = 7;
@@ -93,7 +96,7 @@ int collumn = 6;
 long callTime;
 void scrollELeft(long millis){
   //asign this at first call
-  callTime = callTime == NULL? millis : callTime;
+  callTime = callTime == 0? millis : callTime;
 
   if(millis >= callTime + 500){
     lcd.clear();
@@ -110,7 +113,9 @@ void scrollELeft(long millis){
 
 int pos = 0;
 String msg = "YES OR NO";
+boolean shownMsg;
 void chooseAnswer(){
+  
   int b1State = digitalRead(button1);
   int b2State = digitalRead(button2); 
 
@@ -119,9 +124,74 @@ void chooseAnswer(){
   else if(b2State)
     pos = 7;
 
+  if(shownMsg)  
   lcd.setCursor(pos, 1);
   lcd.cursor();
 }
 
 
+int start = false;
+int mod = 0;
+int selected;
+int pros = false;
+boolean change = false;
+void chooseMode(long mili){
+  String msg = "B O OFF";
+  if(!start){
+    lcd.setCursor(0,0);
+    lcd.print(msg);
+    start = true;
+  }
 
+  int b1State = digitalRead(button1);
+  int b2State = digitalRead(button2);
+  
+  if(b2State && !pros){
+    selected++;
+    selected %= 3;
+    Serial.println(selected);
+    pros = true;
+    change = true;
+  }
+  else if(b1State && !pros){
+    mod = selected;
+    pros = true;
+    change = true;
+  }
+  else if(!b2State && !b1State){
+     pros = false;
+    change = false;
+  }
+
+  
+  int posit;
+  if(selected == 0)
+    posit = 0;
+  else if(selected == 1)
+    posit = 2;
+  else if(selected == 2)
+    posit = 4;
+  
+  if(mod == 0){
+    blink(mili);
+  }
+  else if(mod == 2){
+    digitalWrite(led, 0);
+  }
+  else if(mod == 1){
+    digitalWrite(led, 1);
+  }
+
+  if(change){
+   // Serial.print("posit");
+   // Serial.println(posit);
+    lcd.setCursor(posit, 0);
+    lcd.cursor();
+  }
+}
+
+void blink(long mili){
+  int sec = mili/1000;
+  int state = sec % 2 == 0 ? 1:0;  
+  digitalWrite(led, state);
+}
