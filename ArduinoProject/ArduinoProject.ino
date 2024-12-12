@@ -5,10 +5,10 @@ int latchPin;
 int clockPin;
 int dataPin;
 
-int tilt1 = A1;
-int tilt2 = 13;
-int tilt3 = 3;
-int tilt4 = 9;
+int p1Front = A1;
+//int p1Back = 13;
+//int p2Front = 3;
+int p2Back = 9;
 
 int buttonUp1 = A5;
 int buttonDown1 = A4;
@@ -16,6 +16,15 @@ int buttonUp2 = A3;
 int buttonDown2 = A2;
 int poten = A0;
 int buzz = 9;
+
+bool running = false;
+bool firstState = false;
+
+
+//temp 
+
+int p2Button = 3;
+int p1Button = 13;
 //LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 LiquidCrystal lcd(2, 5, 10, 7, 6, 4);
@@ -37,10 +46,14 @@ void setup() {
   pinMode(poten, INPUT);
   pinMode(buzz, OUTPUT);
 
-  pinMode(tilt1, INPUT);
-  pinMode(tilt2, INPUT);
-  pinMode(tilt3, INPUT);
-  pinMode(tilt4, INPUT);
+  pinMode(p1Front, INPUT);
+  //pinMode(p1Back, INPUT);
+  //pinMode(p2Front, INPUT);
+  //temp
+  pinMode(p1Button, INPUT);
+  pinMode(p2Button, INPUT);
+
+  pinMode(p2Back, INPUT);
   pinMode(poten, INPUT);
 
   pinMode(latchPin, OUTPUT);
@@ -57,11 +70,15 @@ void loop() {
   //currentState = 0B10000000;
   //The left bit is the LCD side
   //the right bit is the button side 
+  if(running){
+    p1PowerSet();
+    p2PowerSet();
 
-  p1PowerSet();
-  p2PowerSet();
+    oscilate();
+  }
 
-  oscilate();
+  //digitalRead(p1Button);
+  //Serial.println(digitalRead(p2Button));
 
   //checkComponents();
 }
@@ -97,8 +114,7 @@ void checkComponents() {
   lcd.print("hello, world!");
 }
 
-
-int p1Power = 1;
+int p1Power = 8;
 bool pressed1 = false;
 void p1PowerSet() {
   //Serial.println(p1Power);
@@ -115,7 +131,7 @@ void p1PowerSet() {
   }
 }
 
-int p2Power = 1;
+int p2Power = 8;
 bool pressed2 = false;
 void p2PowerSet() {
   if (digitalRead(buttonUp2) && p2Power < 9 && !pressed2) {
@@ -129,7 +145,7 @@ void p2PowerSet() {
   else if(!digitalRead(buttonUp2) && !digitalRead(buttonDown2)){
     pressed2 = false;
   }
-  Serial.println(p1Power);
+  //Serial.println(p1Power);
 }
 
 int rate = 1000;
@@ -140,7 +156,6 @@ void oscilate() {
   double b = (2 * PI) / (rate);
   int shiftBy = (direction * -3.5 * cos(b * timeFromHit(false, 0)) + 3.5) + .5;
 
-
   currentState = 0B00000001 << shiftBy;
 
   if(currentState == 0B00000001 && !changed) {
@@ -149,16 +164,21 @@ void oscilate() {
     rate = 1000 * p1Power;
     direction  = 1;
     timeFromHit(true, 0);
-  } else if (currentState == 0B10000000 && !changed) {
+    running = checkSide(true);
+  } 
+  else if (currentState == 0B10000000 && !changed) {
     changed = true;
     //tone(buzz, 400);
     rate = 1000 * p2Power;
     direction = -1;
     timeFromHit(true, 0);
-  } else if (currentState != 0B00000001 && currentState != 0B10000000)
+    running = checkSide(true);
+  } 
+  else if (currentState != 0B00000001 && currentState != 0B10000000){
     changed = false;
+    running = checkSide(false);
+  }
   else {
-
     noTone(buzz);
   }
 
@@ -173,15 +193,14 @@ int timesLastCall[] = {-1, -1};
 //called in oscillate
 long timeFromHit(bool newTime, int index) {
   long time = millis();
-  if (newTime || timeLastCall[timesLastCall] == -1)
+  if (newTime || timesLastCall[index] == -1)
     timesLastCall[index] = time;
 
-  return millis() - timesLastCall[timesLastCall];
+  return millis() - timesLastCall[index];
 }
-
 long futureCooldown;
 long futureWindow;
-boolean heldBack;
+bool heldBack;
 
 
 /*
@@ -244,16 +263,17 @@ static int swingSensor(int tiltSensorFront, int tiltSensorBack, int window)
 //im gonna need a boolean to check which side its on to start registering what side its on
 //im gonna need to call checkSide outside of the binary checks 
 
+//todo --> make an input start ball movement and suspend loss.
 
 //true is player1
 bool player1PlaceHolder;
 bool started = false;
 int window = 1000;
-void checkSide(bool side){
-  int front;
-  int back;
-  int swing = 
-  if(Side){
+bool checkSide(bool lastLed){
+  /*
+  int front = 0;
+  int back = 0;
+  if(direction == 1){
     front = p1Front;
     back = p1Back;
   }
@@ -263,9 +283,9 @@ void checkSide(bool side){
   }
 
   if(!started)
-    timelastCall(true, 1);
+    timeFromHit(true, 1);
 
-  if(timeFromStart >= 100){
+  if(timeFromHit(false, 1) <= 100){
     if(swingSensor(front, back, window) ==  2){
       return true;
       started = false;
@@ -275,4 +295,30 @@ void checkSide(bool side){
     started = false;
 
   return false;
+  */
+
+  if(direction == 1 && digitalRead(p1Button) && !lastLed)
+    running = false;
+  else if(direction == -1 && digitalRead(p2Button) && !lastLed)
+    running = false;
+
+  int button = direction == 1? p1Button: p2Button;
+  //something with time probably
+  if(!started){
+    timeFromHit(true, 1);
+    started = true;
+  }
+  else{
+    if(timeFromHit(false, 1) <= 3000){
+      if(button){
+        return true;
+        started = false;
+      }
+    }
+    else
+      started = false;
+
+    return false;
+  }
 }
+
