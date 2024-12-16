@@ -17,23 +17,26 @@ int buttonDown2 = A2;
 int poten = A0;
 int buzz = 9;
 
-bool running = false;
-bool firstState = false;
+//0 serving, 1 first after serve, 2 is in game, 3 is game over
+int gameState = 0;
+
 
 
 //temp 
 
-int p2Button = 3;
-int p1Button = 13;
+int p2Button = 13;
+int p1Button = 3;
 //LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 LiquidCrystal lcd(2, 5, 10, 7, 6, 4);
 
+int direction = 1;
+bool success = false;
 
 //A binary number that keeps track of the current STATE of the LEDs.
 byte currentState;
 
-void setup() {
+void setup(){
   Serial.begin(9600);
   latchPin = 8;
   clockPin = 12;
@@ -70,15 +73,31 @@ void loop() {
   //currentState = 0B10000000;
   //The left bit is the LCD side
   //the right bit is the button side 
-  if(running){
+  //p2 == 0B10000000;
+  //p1 == 0B00000001;
+  //direction = 1 -> p2
+
+  //Serial.println(gameState);
+
+  if(gameState == 0){
+    currentState = 0B00000001;
+    updateShiftRegister();
+    if(digitalRead(p1Button) && timeFromHit(false, 2) >= 500){
+      //Serial.println("Hello1");
+      gameState = 1;
+      direction = 1;
+      timeFromHit(true, 0);
+    }
+  }
+  else if(gameState == 1 || gameState == 2){
     p1PowerSet();
     p2PowerSet();
-
     oscilate();
+
   }
 
   //digitalRead(p1Button);
-  //Serial.println(digitalRead(p2Button));
+  //Serial.println(digitalRead(p1Button));
 
   //checkComponents();
 }
@@ -149,7 +168,6 @@ void p2PowerSet() {
 }
 
 int rate = 1000;
-int direction = 1;
 bool changed = false;
 
 void oscilate() {
@@ -157,37 +175,47 @@ void oscilate() {
   int shiftBy = (direction * -3.5 * cos(b * timeFromHit(false, 0)) + 3.5) + .5;
 
   currentState = 0B00000001 << shiftBy;
-
-  if(currentState == 0B00000001 && !changed) {
-    changed = true;
-    //tone(buzz, 400);
-    rate = 1000 * p1Power;
-    direction  = 1;
-    timeFromHit(true, 0);
-    running = checkSide(true);
-  } 
-  else if (currentState == 0B10000000 && !changed) {
-    changed = true;
-    //tone(buzz, 400);
-    rate = 1000 * p2Power;
-    direction = -1;
-    timeFromHit(true, 0);
-    running = checkSide(true);
-  } 
-  else if (currentState != 0B00000001 && currentState != 0B10000000){
-    changed = false;
-    running = checkSide(false);
+  if(gameState == 2){
+    if(currentState == 0B00000001 && !changed && !success) {
+      changed = true;
+      //tone(buzz, 400);
+      rate = 1000 * p1Power;
+      direction  = 1;
+      timeFromHit(true, 0);
+      checkSide(true);
+      Serial.println("hello2");
+    } 
+    else if (currentState == 0B10000000 && !changed && !success){
+      //start
+      changed = true;
+      //tone(buzz, 400);
+      rate = 1000 * p2Power;
+      direction = -1;
+      timeFromHit(true, 0);
+      checkSide(true);
+    } 
+    else if (currentState != 0B00000001 && currentState != 0B10000000){
+      changed = false;
+      checkSide(false);
+    }
+    else {
+      noTone(buzz);
+    }
   }
-  else {
-    noTone(buzz);
+  else if(currentState != 0B00000001 && currentState != 0B10000000 && gameState == 1){
+    gameState = 2;
   }
 
+  updateShiftRegister();
+}
+
+void updateShiftRegister(){
   digitalWrite(latchPin, LOW);                          //allows us to edit       //MSBFIRST MOST Sig Bit first,  left to right
   shiftOut(dataPin, clockPin, MSBFIRST, currentState);  //LSBFIRST Least Sig Bit first,  RIGHT to left
   digitalWrite(latchPin, HIGH);                         //stop editing
 }
 
-int timesLastCall[] = {-1, -1};
+int timesLastCall[] = {-1, -1, -1};
 //pass true to define a new time;
 //this is so each side, the sin graph starts at 0
 //called in oscillate
@@ -258,67 +286,43 @@ static int swingSensor(int tiltSensorFront, int tiltSensorBack, int window)
   return output;
 }
 
-
-//conceptually this is bad --> i need to check for early swings
-//im gonna need a boolean to check which side its on to start registering what side its on
-//im gonna need to call checkSide outside of the binary checks 
-
 //todo --> make an input start ball movement and suspend loss.
 
 //true is player1
 bool player1PlaceHolder;
 bool started = false;
-int window = 1000;
-bool checkSide(bool lastLed){
-  /*
-  int front = 0;
-  int back = 0;
-  if(direction == 1){
-    front = p1Front;
-    back = p1Back;
+int window = 2000;
+void checkSide(bool lastLed){
+  if(direction == -1 && digitalRead(p1Button) && !lastLed){
+    timeFromHit(true, 2);
+    gameState = 0;
   }
-  else{
-    front = p2Front;
-    back = p2Back;
+  else if(direction == 1 && digitalRead(p2Button) && !lastLed){
+    timeFromHit(true, 2);
+    gameState = 0;
   }
 
-  if(!started)
-    timeFromHit(true, 1);
-
-  if(timeFromHit(false, 1) <= 100){
-    if(swingSensor(front, back, window) ==  2){
-      return true;
-      started = false;
-    }
-  }
-  else
-    started = false;
-
-  return false;
-  */
-
-  if(direction == 1 && digitalRead(p1Button) && !lastLed)
-    running = false;
-  else if(direction == -1 && digitalRead(p2Button) && !lastLed)
-    running = false;
-
-  int button = direction == 1? p1Button: p2Button;
+  int button = direction == -1? p1Button : p2Button;
   //something with time probably
   if(!started){
     timeFromHit(true, 1);
     started = true;
+    return;
   }
   else{
-    if(timeFromHit(false, 1) <= 3000){
-      if(button){
-        return true;
+    if(timeFromHit(false, 1) <= 2000){
+      if(digitalRead(button)){
         started = false;
+        //if complete it should skip the rest of this
+        success = true;
+        return;
       }
     }
-    else
+    else{
+      Serial.println("hello");
       started = false;
-
-    return false;
+      gameState = 0;
+    }
   }
 }
 
