@@ -36,6 +36,8 @@ bool success = false;
 //A binary number that keeps track of the current STATE of the LEDs.
 byte currentState;
 
+long timesLastCall[] = {-1, -1, -1};
+
 void setup(){
   Serial.begin(9600);
   latchPin = 8;
@@ -96,7 +98,6 @@ void loop() {
 
   }
 
-  //digitalRead(p1Button);
   //Serial.println(digitalRead(p1Button));
 
   //checkComponents();
@@ -141,7 +142,7 @@ void p1PowerSet() {
   if(digitalRead(buttonUp1) && p1Power < 9 && !pressed1) {
     p1Power++;
     pressed1 = true;
-  } else if (digitalRead(buttonDown1) && p1Power > 1 && !pressed1) {
+  } else if (digitalRead(buttonDown1) && p1Power > 2 && !pressed1) {
     p1Power--;
     pressed1 = true;
   }
@@ -156,7 +157,7 @@ void p2PowerSet() {
   if (digitalRead(buttonUp2) && p2Power < 9 && !pressed2) {
     p2Power++;
     pressed2 = true;
-  } else if (digitalRead(buttonDown2) && p2Power > 1 && !pressed2) {
+  } else if (digitalRead(buttonDown2) && p2Power > 2 && !pressed2) {
     p2Power--;
     pressed2 = true;
 
@@ -164,7 +165,7 @@ void p2PowerSet() {
   else if(!digitalRead(buttonUp2) && !digitalRead(buttonDown2)){
     pressed2 = false;
   }
-  //Serial.println(p1Power);
+  Serial.println(p2Power);
 }
 
 int rate = 1000;
@@ -176,7 +177,7 @@ void oscilate() {
 
   currentState = 0B00000001 << shiftBy;
   if(gameState == 2){
-    if(currentState == 0B00000001 && !changed && !success) {
+    if(currentState == 0B00000001 && !changed) {
       changed = true;
       //tone(buzz, 400);
       rate = 1000 * p1Power;
@@ -185,7 +186,7 @@ void oscilate() {
       checkSide(true);
       Serial.println("hello2");
     } 
-    else if (currentState == 0B10000000 && !changed && !success){
+    else if (currentState == 0B10000000 && !changed){
       //start
       changed = true;
       //tone(buzz, 400);
@@ -215,7 +216,7 @@ void updateShiftRegister(){
   digitalWrite(latchPin, HIGH);                         //stop editing
 }
 
-int timesLastCall[] = {-1, -1, -1};
+
 //pass true to define a new time;
 //this is so each side, the sin graph starts at 0
 //called in oscillate
@@ -286,6 +287,10 @@ static int swingSensor(int tiltSensorFront, int tiltSensorBack, int window)
   return output;
 }
 
+void reset(int index){
+  timesLastCall[index] = -1;
+}
+
 //todo --> make an input start ball movement and suspend loss.
 
 //true is player1
@@ -293,6 +298,12 @@ bool player1PlaceHolder;
 bool started = false;
 int window = 2000;
 void checkSide(bool lastLed){
+  //Serial.println(success == 1? "success": "");
+  if(success)
+    return;
+  if(!lastLed)
+    success = false;
+  
   if(direction == -1 && digitalRead(p1Button) && !lastLed){
     timeFromHit(true, 2);
     gameState = 0;
@@ -304,25 +315,28 @@ void checkSide(bool lastLed){
 
   int button = direction == -1? p1Button : p2Button;
   //something with time probably
-  if(!started){
-    timeFromHit(true, 1);
-    started = true;
-    return;
+  if(lastLed){
+    if(!started){
+      timeFromHit(true, 1);
+      started = true;
+      return;
+    }
   }
   else{
-    if(timeFromHit(false, 1) <= 2000){
-      if(digitalRead(button)){
+    //Todo maybe scale scale off of speed
+      if(timeFromHit(false, 1) <= 3000){
+        if(digitalRead(button)){
+          started = false;
+          success = true;
+          return;
+        }
+      }
+      else{
+        //Serial.println("hello");
+        reset(1);
         started = false;
-        //if complete it should skip the rest of this
-        success = true;
-        return;
+        gameState = 0;
       }
     }
-    else{
-      Serial.println("hello");
-      started = false;
-      gameState = 0;
-    }
   }
-}
 
