@@ -77,25 +77,26 @@ void loop() {
   //the right bit is the button side 
   //p2 == 0B10000000;
   //p1 == 0B00000001;
-  //direction = 1 -> p2
+  //direction = 1: p1 -> p2
 
-  //Serial.println(gameState);
+  Serial.println(gameState);
 
   if(gameState == 0){
     currentState = 0B00000001;
     updateShiftRegister();
     if(digitalRead(p1Button) && timeFromHit(false, 2) >= 500){
+      reset(2);
       //Serial.println("Hello1");
       gameState = 1;
       direction = 1;
       timeFromHit(true, 0);
+      Serial.println("Reset");
     }
   }
   else if(gameState == 1 || gameState == 2){
     p1PowerSet();
     p2PowerSet();
     oscilate();
-
   }
 
   //Serial.println(digitalRead(p1Button));
@@ -165,7 +166,7 @@ void p2PowerSet() {
   else if(!digitalRead(buttonUp2) && !digitalRead(buttonDown2)){
     pressed2 = false;
   }
-  Serial.println(p2Power);
+  //Serial.println(p2Power);
 }
 
 int rate = 1000;
@@ -178,16 +179,17 @@ void oscilate() {
   currentState = 0B00000001 << shiftBy;
   if(gameState == 2){
     if(currentState == 0B00000001 && !changed) {
+      //if p1 side
       changed = true;
       //tone(buzz, 400);
       rate = 1000 * p1Power;
       direction  = 1;
       timeFromHit(true, 0);
       checkSide(true);
-      Serial.println("hello2");
+      //Serial.println("hello2");
     } 
     else if (currentState == 0B10000000 && !changed){
-      //start
+      //if p2 side
       changed = true;
       //tone(buzz, 400);
       rate = 1000 * p2Power;
@@ -298,11 +300,10 @@ bool player1PlaceHolder;
 bool started = false;
 int window = 2000;
 void checkSide(bool lastLed){
-  //Serial.println(success == 1? "success": "");
-  if(success)
-    return;
   if(!lastLed)
     success = false;
+  else if(success)
+    return;
   
   if(direction == -1 && digitalRead(p1Button) && !lastLed){
     timeFromHit(true, 2);
@@ -314,29 +315,31 @@ void checkSide(bool lastLed){
   }
 
   int button = direction == -1? p1Button : p2Button;
-  //something with time probably
+  //The return back to p1 is not even reached the code under
   if(lastLed){
     if(!started){
       timeFromHit(true, 1);
       started = true;
       return;
     }
-  }
-  else{
     //Todo maybe scale scale off of speed
-      if(timeFromHit(false, 1) <= 3000){
-        if(digitalRead(button)){
-          started = false;
-          success = true;
-          return;
-        }
-      }
-      else{
-        //Serial.println("hello");
-        reset(1);
+  }
+  if(started){
+    if(timeFromHit(false, 1) <= 3000){
+      if(digitalRead(button)){
+        Serial.println("HIT");
         started = false;
-        gameState = 0;
+        success = true;
+        return;
       }
     }
+    else{
+      //Serial.println("hello");
+      reset(1);
+      started = false;
+      gameState = 0;
+    }
   }
+  
+}
 
